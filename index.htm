@@ -5,6 +5,7 @@
   <link rel="stylesheet" href="Style.css">
   <link rel="stylesheet" href="Progress.css">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 
 <body>
@@ -124,13 +125,11 @@
       error("Cannot create stream now - " + e);
     }
     try {
+      var response = "";
       for await (const chunk of stream) {
         showBusy(false);
-        if (update_element.innerText === "...") {
-          update_element.innerText = chunk;
-        } else {
-          update_element.innerText += chunk;
-        }
+        response += chunk;
+        update_element.innerHTML = marked.parse(response);
         token_count++;
         // Wait for prefill to complete before we estimate tokens per second.
         if (token_count >= 2) {
