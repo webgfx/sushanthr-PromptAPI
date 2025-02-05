@@ -263,35 +263,29 @@ Pse`;
         function saveResults() {
             const timeToFirstToken = document.getElementById('time-to-first-token').innerText;
             const timeToPrefill1k = document.getElementById('time-to-prefill-1k').innerText;
-            const tps1 = document.getElementById('tps1-1').innerText;
-            const tps2 = document.getElementById('tps1-2').innerText;
+            const tpsResult = document.getElementById('tps-result').innerText;
 
             const browserInfo = getBrowserInfo();
             const gpuInfo = getGpuInfo();
 
-            const data = {
-            timeToFirstToken,
-            timeToPrefill1k,
-            tps1,
-            tps2,
-            browserInfo,
-            gpuInfo
-            };
+            const [browserName, browserVersion] = browserInfo.split(' ');
 
-            fetch('https://script.google.com/macros/s/AKfycbyJ93EPEjDefZ8yXj-F4u7yP9c8FPiHStdiYe64NPhlshxHmp9meXUR2dJorDbEsCnTGA/exec', {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-            console.log('Success:', data);
-            })
-            .catch((error) => {
-            console.error('Error:', error);
+            const data = [
+            new Date().toLocaleDateString(), // Date
+            browserName, // Browser
+            browserVersion, // Browser Version
+            gpuInfo, // GPU Info
+            timeToFirstToken, // Time to first token
+            timeToPrefill1k, // Time to prefill 1K tokens (ms)
+            tpsResult // Time to generate tokens (tps)
+            ];
+
+            const clipboardData = data.join('\t');
+
+            navigator.clipboard.writeText(clipboardData).then(() => {
+            console.log('Results copied to clipboard');
+            }).catch(err => {
+            console.error('Error copying to clipboard', err);
             });
         }
 
@@ -347,7 +341,7 @@ Pse`;
                 </div>
             </div>
             <button id="bench" onclick="MeasureAll()">Measure</button>
-            <button id="save" onclick="saveResults()">Save ☁️</button>
+            <button id="save" onclick="saveResults()">Copy📋</button>
             <table>
                 <tr>
                     <td>
