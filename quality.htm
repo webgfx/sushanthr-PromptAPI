@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>LLM Evaluation Test</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    #progressBar {
+      width: 100%;
+      background: #eee;
+      border: 1px solid #bbb;
+      margin-top: 10px;
+    }
+    #progressBar div {
+      height: 20px;
+      background: #4caf50;
+      width: 0%;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+    }
+    #log {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 5px;
+      margin-top: 10px;
+      font-size: 0.9em;
+      background: #f9f9f9;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <h1>LLM Evaluation Test</h1>
+  <p>
+    This test will load JSON test files from the MMLU folder on demand, prompt the language model with each question, and tally the number of correct single-letter answers.
+  </p>
+  <button id="startTest">Start / Resume Test</button>
+  <button id="stopTest" disabled>Stop Test</button>
+  <div id="progressInfo">
+    <p>Test Progress: <span id="currentCount">0</span> questions attempted</p>
+    <div id="progressBar"><div></div></div>
+  </div>
+  <div id="results">
+    <h2>Results</h2>
+    <p>Correct Answers: <span id="correctCount">0</span></p>
+    <p>Total Questions: <span id="questionCount">0</span></p>
+    <p>Score: <span id="scorePercent">0</span>%</p>
+    <p>Non-single-letter responses: <span id="nonLetterCount">0</span></p>
+  </div>
+  <div id="log"></div>
+
+  <script type="module">
+    // --- Utility functions ---
+    function log(message) {
+      const logDiv = document.getElementById("log");
+      logDiv.innerHTML += `<div>${message}</div>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function saveProgress(progress) {
+      localStorage.setItem('eval_progress', JSON.stringify(progress));
+    }
+
+    function loadProgress() {
+      const progress = localStorage.getItem('eval_progress');
+      return progress ? JSON.parse(progress) : { currentQuestion: 0, correct: 0, nonLetter: 0 };
+    }
+
+    function mapIndexToLetter(idx) {
+      // Assuming choices order: 0->A, 1->B, 2->C, 3->D.
+      return String.fromCharCode(65 + idx);
+    }
+
+    // --- Global variables ---
+    const TOTAL_FILES = 100;
+    let currentFile = 1; // next file to load
+    let questions = [];  // Queue of question objects: {question, choices, answer}
+    let testing = false;
+    let progress = loadProgress();
+
+    // --- Load test questions from next JSON file ---
+    async function loadNextQuestions() {
+      try {
+        // Adjust the fetch path as needed if serving from a local server.
+        const resp = await fetch(`MMLU/MMLU_${currentFile}.json`);
+        if (!resp.ok) {
+          log(`Failed to load file: MMLU_${currentFile}.json`);
+          currentFile++;
+          return;
+        }
+        const text = await resp.text();
+        // Split by newline and parse any non-empty JSON line
+        text.split('\n').forEach(line => {
+          line = line.trim();
+          if (line) {
+            try {
+              const obj = JSON.parse(line);
+              questions.push(obj);
+            } catch (err) {
+              log(`Error parsing JSON in file MMLU_${currentFile}.json: ${err}`);
+            }
+          }
+        });
+        log(`Loaded questions from file MMLU_${currentFile}.json`);
+      } catch (err) {
+        log(`Error loading file MMLU_${currentFile}.json: ${err}`);
+      } finally {
+        currentFile++;
+      }
+    }
+
+    // --- Ask one question ---
+    async function askQuestion(qObj) {
+      // Format the prompt text
+      const letterChoices = qObj.choices.map((choice, index) => {
+        return `${mapIndexToLetter(index)}. ${choice}`;
+      }).join(' ');
+      const promptText = `Reply with single letter option only\n\nQuestion: ${qObj.question}\nChoices: ${letterChoices}\nAnswer:`;
+      // Use promptStreaming to get the answer.
+      let answer = "";
+      try {
+        showBusy(true);
+        const stream = await window.ai.languageModel.create
+          ? await session.promptStreaming(promptText)
+          : null;
+        // Using a loop to collect streaming chunks.
+        for await (const chunk of stream) {
+          answer += chunk;
+        }
+      } catch (e) {
+        log(`prompt API error: ${e}`);
+      } finally {
+        showBusy(false);
+      }
+      return answer.trim();
+    }
+
+    // --- Busy indicator ---
+    function showBusy(busy) {
+      document.getElementById("stopTest").disabled = busy ? false : true;
+    }
+
+    // --- Main testing loop ---
+    async function runTests() {
+      testing = true;
+      document.getElementById("startTest").disabled = true;
+      document.getElementById("stopTest").disabled = false;
+
+      while (testing && (questions.length > 0 || currentFile <= TOTAL_FILES)) {
+        // If there are no queued questions and files remain, load the next file.
+        if (questions.length === 0 && currentFile <= TOTAL_FILES) {
+          await loadNextQuestions();
+          // Continue if questions are still empty after attempting to load.
+          if (questions.length === 0) {
+            continue;
+          }
+        }
+        // Get next question from the queue.
+        const qObj = questions.shift();
+        progress.currentQuestion++;
+        document.getElementById("currentCount").innerText = progress.currentQuestion;
+        // Note: Since total questions number is now dynamic, the progress bar is updated based on the count so far.
+        // You may adjust this logic if you have an estimate of the total number of questions.
+        log(`Testing Q${progress.currentQuestion}: ${qObj.question}`);
+
+        // Send query and get answer.
+        let response = await askQuestion(qObj);
+        log(`Raw response: "${response}"`);
+
+        // Check if response is a single letter A-D (allow lowercase too).
+        const singleLetterMatch = response.match(/^[A-Da-d]$/);
+        if (!singleLetterMatch) {
+          progress.nonLetter++;
+          log(`Response is not a single letter.`);
+        }
+        else {
+          // Map expected answer number to letter.
+          const expectedLetter = mapIndexToLetter(qObj.answer);
+          if (response.toUpperCase() === expectedLetter) {
+            progress.correct++;
+            log(`Correct answer (expected: ${expectedLetter}).`);
+          } else {
+            log(`Incorrect answer (expected: ${expectedLetter}).`);
+          }
+        }
+        saveProgress(progress);
+        // Update results UI
+        document.getElementById("correctCount").innerText = progress.correct;
+        document.getElementById("questionCount").innerText = progress.currentQuestion;
+        const score = progress.currentQuestion > 0 ? (progress.correct / progress.currentQuestion * 100).toFixed(2) : 0;
+        document.getElementById("scorePercent").innerText = score;
+        document.getElementById("nonLetterCount").innerText = progress.nonLetter;
+
+        // (Optional) Small delay between questions.
+        await new Promise(res => setTimeout(res, 500));
+      }
+      testing = false;
+      document.getElementById("startTest").disabled = false;
+      document.getElementById("stopTest").disabled = true;
+      log('Testing complete.');
+    }
+
+    // --- Event listeners ---
+    document.getElementById("startTest").addEventListener("click", () => {
+      (async() => {
+        if (!window.session) {
+          try {
+            showBusy(true);
+            window.session = await window.ai.languageModel.create({ temperature: 1.0, topK: 1 });
+          } catch (e) {
+            log("Error creating session: " + e);
+          } finally {
+            showBusy(false);
+          }
+        }
+        runTests();
+      })();
+    });
+
+    document.getElementById("stopTest").addEventListener("click", () => {
+      testing = false;
+      document.getElementById("stopTest").disabled = true;
+      document.getElementById("startTest").disabled = false;
+      log('Testing paused.');
+    });
+  </script>
+</body>
+</html>
