@@ -9,7 +9,7 @@
   margin: 0 auto 1rem;
   max-width: 1024px;
   padding: 0.5rem 1.5rem;
-  height: calc(100vh - 500px);
+  height: calc(100vh - 400px);
   overflow-y: scroll;
 }
 
