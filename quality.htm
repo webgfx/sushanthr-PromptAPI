@@ -269,14 +269,13 @@
       document.getElementById("stopTest").disabled = false;
 
       while (testing && (questions.length > 0 || currentFile <= TOTAL_FILES)) {
-        if (questions.length === 0 && currentFile <= TOTAL_FILES) {
-          // If file is finished, reset per-file index and load the next file.
-          progress.questionIndex = 0;
-          await setProgress({ id: "progress", ...progress, currentFile, questionIndex: 0 });
+        if (questions.length === 0) {
           await loadNextQuestions();
-          // If still no questions, continue to next file.
           if (questions.length === 0) {
+            // File is finished, move to next file and reset per-file index.
             currentFile++;
+            progress.questionIndex = 0;
+            await setProgress({ id: "progress", ...progress, currentFile, questionIndex: 0 });
             continue;
           }
         }
