@@ -33,13 +33,31 @@
       font-size: 0.9em;
       background: #f9f9f9;
     }
+    .header
+    {
+        position:absolute;
+        top:0px;
+        right:0px;
+    }
+
+    .container {
+        margin: 0 auto;
+        max-width: 1024px;
+        padding: 1rem;
+        position:relative;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-<body>
+<body class="container">
   <h1>LLM Evaluation Test</h1>
+  <div class="header">
+    <a link href="index.htm">Chat</a> | 
+    <a link href="Benchmark.htm">Benchmark</a> | 
+    <a link href="quality.htm">Quality</a>
+ </div> 
   <p>
-    This test will load JSON test files from the MMLU folder on demand, prompt the language model with each question, and tally the number of correct single-letter answers.
+    This test will through the MMLU dataset, prompt the language model with each question, and tally the number of correct single-letter answers.
   </p>
   <button id="startTest">Start / Resume Test</button>
   <button id="stopTest" disabled>Stop Test</button>
