@@ -85,7 +85,8 @@
           db = event.target.result;
           if (!db.objectStoreNames.contains("progress")) {
             const store = db.createObjectStore("progress", { keyPath: "id" });
-            store.put({ id: "progress", currentQuestion: 0, correct: 0, nonLetter: 0 });
+            // Added currentFile and questionIndex (index in current file)
+            store.put({ id: "progress", currentQuestion: 0, correct: 0, nonLetter: 0, currentFile: 1, questionIndex: 0 });
           }
           if (!db.objectStoreNames.contains("logs")) {
             db.createObjectStore("logs", { autoIncrement: true });
@@ -180,6 +181,9 @@
     async function restoreProgress() {
       try {
         progress = await getProgress();
+        // Set globals based on stored progress
+        currentFile = progress.currentFile || 1;
+        progress.questionIndex = progress.questionIndex || 0;
         document.getElementById("currentCount").innerText = progress.currentQuestion;
         document.getElementById("correctCount").innerText = progress.correct;
         document.getElementById("questionCount").innerText = progress.currentQuestion;
@@ -206,26 +210,33 @@
         const resp = await fetch(`MMLU/MMLU_${currentFile}.json`);
         if (!resp.ok) {
           log(`Failed to load file: MMLU_${currentFile}.json`);
+          // If file load fails, move to next file
           currentFile++;
+          // Reset restart pointer for new file
+          progress.questionIndex = 0;
           return;
         }
         const text = await resp.text();
+        let loadedQuestions = [];
         text.split('\n').forEach(line => {
           line = line.trim();
           if (line) {
             try {
               const obj = JSON.parse(line);
-              questions.push(obj);
+              loadedQuestions.push(obj);
             } catch (err) {
               log(`Error parsing JSON in file MMLU_${currentFile}.json: ${err}`);
             }
           }
         });
-        log(`Loaded questions from file MMLU_${currentFile}.json`);
+        // If resuming in the middle of a file, skip already asked questions.
+        if (progress.questionIndex > 0) {
+          loadedQuestions = loadedQuestions.slice(progress.questionIndex);
+        }
+        questions = loadedQuestions;
+        log(`Loaded questions from file MMLU_${currentFile}.json starting at question ${progress.questionIndex + 1}`);
       } catch (err) {
         log(`Error loading file MMLU_${currentFile}.json: ${err}`);
-      } finally {
-        currentFile++;
       }
     }
 
@@ -259,13 +270,20 @@
 
       while (testing && (questions.length > 0 || currentFile <= TOTAL_FILES)) {
         if (questions.length === 0 && currentFile <= TOTAL_FILES) {
+          // If file is finished, reset per-file index and load the next file.
+          progress.questionIndex = 0;
+          await setProgress({ id: "progress", ...progress, currentFile, questionIndex: 0 });
           await loadNextQuestions();
+          // If still no questions, continue to next file.
           if (questions.length === 0) {
+            currentFile++;
             continue;
           }
         }
         const qObj = questions.shift();
         progress.currentQuestion++;
+        // Increase the per-file question index.
+        progress.questionIndex++;
         document.getElementById("currentCount").innerText = progress.currentQuestion;
         log(`Testing Q${progress.currentQuestion}: ${qObj.question}`);
         let response = await askQuestion(qObj);
@@ -284,7 +302,7 @@
             log(`Incorrect answer (expected: ${expectedLetter}).`);
           }
         }
-        await setProgress({ id: "progress", ...progress });
+        await setProgress({ id: "progress", ...progress, currentFile, questionIndex: progress.questionIndex });
         document.getElementById("correctCount").innerText = progress.correct;
         document.getElementById("questionCount").innerText = progress.currentQuestion;
         const score = progress.currentQuestion > 0 ? (progress.correct / progress.currentQuestion * 100).toFixed(2) : 0;
