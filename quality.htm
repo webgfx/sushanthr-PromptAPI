@@ -61,6 +61,7 @@
   </p>
   <button id="startTest">Start / Resume Test</button>
   <button id="stopTest" disabled>Stop Test</button>
+  <button id="clearResults">Clear Results</button>
   <div id="progressInfo">
     <p>Test Progress: <span id="currentCount">0</span> questions attempted</p>
     <div id="progressBar"><div></div></div>
@@ -75,38 +76,133 @@
   <div id="log"></div>
 
   <script type="module">
+    // --- IndexedDB functions ---
+    let db;
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("LLMTestDB", 1);
+        request.onupgradeneeded = (event) => {
+          db = event.target.result;
+          if (!db.objectStoreNames.contains("progress")) {
+            const store = db.createObjectStore("progress", { keyPath: "id" });
+            store.put({ id: "progress", currentQuestion: 0, correct: 0, nonLetter: 0 });
+          }
+          if (!db.objectStoreNames.contains("logs")) {
+            db.createObjectStore("logs", { autoIncrement: true });
+          }
+        };
+        request.onsuccess = (event) => {
+          db = event.target.result;
+          resolve();
+        };
+        request.onerror = (event) => {
+          reject(event.target.error);
+        };
+      });
+    }
+
+    function getProgress() {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("progress", "readonly");
+        const store = tx.objectStore("progress");
+        const request = store.get("progress");
+        request.onsuccess = () => resolve(request.result || { id: "progress", currentQuestion: 0, correct: 0, nonLetter: 0 });
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function setProgress(progress) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("progress", "readwrite");
+        const store = tx.objectStore("progress");
+        const request = store.put(progress);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function addLogToDB(message) {
+      const tx = db.transaction("logs", "readwrite");
+      const store = tx.objectStore("logs");
+      store.add({ message, timestamp: Date.now() });
+    }
+
+    function getLogsFromDB() {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("logs", "readonly");
+        const store = tx.objectStore("logs");
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function clearDB() {
+      return new Promise((resolve, reject) => {
+        // Clear progress and logs
+        const tx1 = db.transaction("progress", "readwrite");
+        const store1 = tx1.objectStore("progress");
+        store1.put({ id: "progress", currentQuestion: 0, correct: 0, nonLetter: 0 });
+        tx1.oncomplete = () => {
+          const tx2 = db.transaction("logs", "readwrite");
+          const store2 = tx2.objectStore("logs");
+          const clearRequest = store2.clear();
+          clearRequest.onsuccess = () => resolve();
+          clearRequest.onerror = () => reject(clearRequest.error);
+        }
+        tx1.onerror = () => reject(tx1.error);
+      });
+    }
+
     // --- Utility functions ---
+    const logDiv = document.getElementById("log");
     function log(message) {
-      const logDiv = document.getElementById("log");
       logDiv.innerHTML += `<div>${message}</div>`;
       logDiv.scrollTop = logDiv.scrollHeight;
+      addLogToDB(message);
     }
 
-    function saveProgress(progress) {
-      localStorage.setItem('eval_progress', JSON.stringify(progress));
+    async function restoreLogs() {
+      try {
+        const logs = await getLogsFromDB();
+        if (logs.length) {
+          logDiv.innerHTML = "";
+          logs.forEach(item => {
+            logDiv.innerHTML += `<div>${item.message}</div>`;
+          });
+        }
+      } catch (e) {
+        console.error("Error restoring logs:", e);
+      }
     }
 
-    function loadProgress() {
-      const progress = localStorage.getItem('eval_progress');
-      return progress ? JSON.parse(progress) : { currentQuestion: 0, correct: 0, nonLetter: 0 };
+    let progress = { currentQuestion: 0, correct: 0, nonLetter: 0 };
+    async function restoreProgress() {
+      try {
+        progress = await getProgress();
+        document.getElementById("currentCount").innerText = progress.currentQuestion;
+        document.getElementById("correctCount").innerText = progress.correct;
+        document.getElementById("questionCount").innerText = progress.currentQuestion;
+        const score = progress.currentQuestion > 0 ? (progress.correct / progress.currentQuestion * 100).toFixed(2) : 0;
+        document.getElementById("scorePercent").innerText = score;
+        document.getElementById("nonLetterCount").innerText = progress.nonLetter;
+      } catch (e) {
+        console.error("Error restoring progress:", e);
+      }
     }
 
+    // --- Other functions from your original code ---
     function mapIndexToLetter(idx) {
-      // Assuming choices order: 0->A, 1->B, 2->C, 3->D.
       return String.fromCharCode(65 + idx);
     }
 
-    // --- Global variables ---
     const TOTAL_FILES = 100;
-    let currentFile = 1; // next file to load
-    let questions = [];  // Queue of question objects: {question, choices, answer}
+    let currentFile = 1;
+    let questions = [];
     let testing = false;
-    let progress = loadProgress();
 
-    // --- Load test questions from next JSON file ---
     async function loadNextQuestions() {
       try {
-        // Adjust the fetch path as needed if serving from a local server.
         const resp = await fetch(`MMLU/MMLU_${currentFile}.json`);
         if (!resp.ok) {
           log(`Failed to load file: MMLU_${currentFile}.json`);
@@ -114,7 +210,6 @@
           return;
         }
         const text = await resp.text();
-        // Split by newline and parse any non-empty JSON line
         text.split('\n').forEach(line => {
           line = line.trim();
           if (line) {
@@ -134,72 +229,53 @@
       }
     }
 
-    // --- Ask one question ---
     async function askQuestion(qObj) {
-      // Format the prompt text
-      const letterChoices = qObj.choices.map((choice, index) => {
-        return `${mapIndexToLetter(index)}. ${choice}`;
-      }).join(' ');
+      const letterChoices = qObj.choices.map((choice, index) => `${mapIndexToLetter(index)}. ${choice}`).join(' ');
       const promptText = `Reply with single letter option only\n\nQuestion: ${qObj.question}\nChoices: ${letterChoices}\nAnswer:`;
-      // Use promptStreaming to get the answer.
       let answer = "";
       try {
         showBusy(true);
-        const stream = await window.ai.languageModel.create
-          ? await session.promptStreaming(promptText)
-          : null;
-        // Using a loop to collect streaming chunks.
+        const stream = await window.ai.languageModel.create ? await session.promptStreaming(promptText) : null;
         for await (const chunk of stream) {
           answer += chunk;
         }
       } catch (e) {
         log(`prompt API error: ${e}`);
+        testing = false;
       } finally {
         showBusy(false);
       }
       return answer.trim();
     }
 
-    // --- Busy indicator ---
     function showBusy(busy) {
       document.getElementById("stopTest").disabled = busy ? false : true;
     }
 
-    // --- Main testing loop ---
     async function runTests() {
       testing = true;
       document.getElementById("startTest").disabled = true;
       document.getElementById("stopTest").disabled = false;
 
       while (testing && (questions.length > 0 || currentFile <= TOTAL_FILES)) {
-        // If there are no queued questions and files remain, load the next file.
         if (questions.length === 0 && currentFile <= TOTAL_FILES) {
           await loadNextQuestions();
-          // Continue if questions are still empty after attempting to load.
           if (questions.length === 0) {
             continue;
           }
         }
-        // Get next question from the queue.
         const qObj = questions.shift();
         progress.currentQuestion++;
         document.getElementById("currentCount").innerText = progress.currentQuestion;
-        // Note: Since total questions number is now dynamic, the progress bar is updated based on the count so far.
-        // You may adjust this logic if you have an estimate of the total number of questions.
         log(`Testing Q${progress.currentQuestion}: ${qObj.question}`);
-
-        // Send query and get answer.
         let response = await askQuestion(qObj);
         log(`Raw response: "${response}"`);
 
-        // Check if response is a single letter A-D (allow lowercase too).
         const singleLetterMatch = response.match(/^[A-Da-d]$/);
         if (!singleLetterMatch) {
           progress.nonLetter++;
           log(`Response is not a single letter.`);
-        }
-        else {
-          // Map expected answer number to letter.
+        } else {
           const expectedLetter = mapIndexToLetter(qObj.answer);
           if (response.toUpperCase() === expectedLetter) {
             progress.correct++;
@@ -208,15 +284,12 @@
             log(`Incorrect answer (expected: ${expectedLetter}).`);
           }
         }
-        saveProgress(progress);
-        // Update results UI
+        await setProgress({ id: "progress", ...progress });
         document.getElementById("correctCount").innerText = progress.correct;
         document.getElementById("questionCount").innerText = progress.currentQuestion;
         const score = progress.currentQuestion > 0 ? (progress.correct / progress.currentQuestion * 100).toFixed(2) : 0;
         document.getElementById("scorePercent").innerText = score;
         document.getElementById("nonLetterCount").innerText = progress.nonLetter;
-
-        // (Optional) Small delay between questions.
         await new Promise(res => setTimeout(res, 500));
       }
       testing = false;
@@ -248,6 +321,34 @@
       document.getElementById("startTest").disabled = false;
       log('Testing paused.');
     });
+
+    document.getElementById("clearResults").addEventListener("click", async () => {
+      try {
+        await clearDB();
+        // Reset UI elements and progress variable.
+        progress = { currentQuestion: 0, correct: 0, nonLetter: 0 };
+        document.getElementById("currentCount").innerText = "0";
+        document.getElementById("correctCount").innerText = "0";
+        document.getElementById("questionCount").innerText = "0";
+        document.getElementById("scorePercent").innerText = "0";
+        document.getElementById("nonLetterCount").innerText = "0";
+        logDiv.innerHTML = "";
+        log('Results cleared.');
+      } catch (e) {
+        log(`Error clearing results: ${e}`);
+      }
+    });
+
+    // --- Initialization ---
+    (async () => {
+      try {
+        await initDB();
+        await restoreProgress();
+        await restoreLogs();
+      } catch (e) {
+        console.error("DB initialization error:", e);
+      }
+    })();
   </script>
 </body>
 </html>
