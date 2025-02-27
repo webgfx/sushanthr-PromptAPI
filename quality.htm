@@ -242,7 +242,7 @@
 
     async function askQuestion(qObj) {
         const letterChoices = qObj.choices.map((choice, index) => `${mapIndexToLetter(index)}. ${choice}`).join(' ');
-        const promptText = `Reply with single letter option only\n\nQuestion: ${qObj.question}\nChoices: ${letterChoices}\nAnswer:`;
+        const promptText = `Respond with a single letter option only, no explanation.\n\nQuestion: ${qObj.question}\nChoices: ${letterChoices}\nAnswer:`;
         let answer = "";
         try {
           showBusy(true);
@@ -294,13 +294,14 @@
         let response = await askQuestion(qObj);
         log(`Raw response: "${response}"`);
 
-        const singleLetterMatch = response.match(/^[A-Da-d]$/);
+        const singleLetterMatch = response.match(/^([A-Da-d])(?:\..*)?$/);
         if (!singleLetterMatch) {
           progress.nonLetter++;
-          log(`Response is not a single letter.`);
+          log(`Response is not a valid letter response.`);
         } else {
+          const responseLetter = singleLetterMatch[1].toUpperCase();
           const expectedLetter = mapIndexToLetter(qObj.answer);
-          if (response.toUpperCase() === expectedLetter) {
+          if (responseLetter === expectedLetter) {
             progress.correct++;
             log(`Correct answer (expected: ${expectedLetter}).`);
           } else {
