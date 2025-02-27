@@ -99,6 +99,7 @@ Pse`;
     </script>
     <script>
         const kMillisecond = 1000;
+        let session_controller = null;
         async function CheckCapabilitiesAndCreateSession()
         {
             try
@@ -128,7 +129,8 @@ Pse`;
             var session = null;
             try
             {
-                session = await window.ai.languageModel.create({temperature: 1.0, topK: 1});
+                session_controller = new AbortController();
+                session = await window.ai.languageModel.create({temperature: 1.0, topK: 1, signal: session_controller.signal});
                 return session;
             }
             catch (e)
@@ -153,6 +155,8 @@ Pse`;
                     if (is_first_token) {
                         is_first_token = false;
                         end = performance.now();
+                    } else {
+                        session_controller.abort();
                     }
                 }
                 showBusy(false);
