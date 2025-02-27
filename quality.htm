@@ -294,7 +294,7 @@
         let response = await askQuestion(qObj);
         log(`Raw response: "${response}"`);
 
-        const singleLetterMatch = response.match(/^([A-Da-d])(?:\..*)?$/);
+        const singleLetterMatch = response.match(/^([A-Da-d])(?:\.[\s\S]*)?$/);
         if (!singleLetterMatch) {
           progress.nonLetter++;
           log(`Response is not a valid letter response.`);
