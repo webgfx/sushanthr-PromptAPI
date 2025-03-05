@@ -17,6 +17,26 @@
       <a link href="Benchmark.htm">Benchmark</a> | 
       <a link href="quality.htm">Quality</a>
     </div>
+
+    <div class="settings-panel">
+      <button id="settings-toggle" class="settings-toggle">⚙️ Settings</button>
+      <div id="settings-content" class="settings-content hidden">
+        <div class="setting-item">
+          <label for="temperature">Temperature:</label>
+          <input type="range" id="temperature" min="0" max="1" step="0.1" value="1.0">
+          <span id="temperature-value">1.0</span>
+        </div>
+        <div class="setting-item">
+          <label for="topk">Top K:</label>
+          <input type="number" id="topk" min="1" max="100" value="1">
+        </div>
+        <div class="setting-item">
+          <label for="system-prompt">System Prompt:</label>
+          <textarea id="system-prompt" rows="3" placeholder="Enter system prompt here..."></textarea>
+        </div>
+      </div>
+    </div>
+
     <p id="error">
     </p>
     <p id="okay">
@@ -42,6 +62,43 @@
   const kNoModelError = "Prompt API is available, feature flag is likely set correctly but no models are available.";
   let session_controller = null;
   let isStreaming = false;
+  
+  // Add model settings
+  let modelSettings = {
+    temperature: 1.0,
+    topK: 1,
+    systemPrompt: ""
+  };
+
+  // Settings panel functionality
+  function initializeSettings() {
+    const settingsToggle = document.getElementById("settings-toggle");
+    const settingsContent = document.getElementById("settings-content");
+    const temperatureInput = document.getElementById("temperature");
+    const temperatureValue = document.getElementById("temperature-value");
+    const topkInput = document.getElementById("topk");
+    const systemPromptInput = document.getElementById("system-prompt");
+
+    settingsToggle.addEventListener("click", () => {
+      settingsContent.classList.toggle("hidden");
+    });
+
+    temperatureInput.addEventListener("input", (e) => {
+      modelSettings.temperature = parseFloat(e.target.value);
+      temperatureValue.textContent = e.target.value;
+    });
+
+    topkInput.addEventListener("input", (e) => {
+      modelSettings.topK = parseInt(e.target.value);
+    });
+
+    systemPromptInput.addEventListener("input", (e) => {
+      modelSettings.systemPrompt = e.target.value;
+    });
+  }
+
+  initializeSettings();
+
   function error(str) {
     // Show the first error.
     if (success) {
@@ -98,8 +155,9 @@
     showBusy(true);
     session_controller = new AbortController();
     session = await window.ai.languageModel.create({ 
-      temperature: 1.0, 
-      topK: 1, 
+      temperature: modelSettings.temperature, 
+      topK: modelSettings.topK,
+      systemPrompt: modelSettings.systemPrompt,
       signal: session_controller.signal 
     });
     showBusy(false);
@@ -203,8 +261,9 @@
     if (!session) {
       session_controller = new AbortController();
       session = await window.ai.languageModel.create({ 
-        temperature: 1.0, 
-        topK: 1, 
+        temperature: modelSettings.temperature, 
+        topK: modelSettings.topK,
+        systemPrompt: modelSettings.systemPrompt,
         signal: session_controller.signal 
       });
     }
