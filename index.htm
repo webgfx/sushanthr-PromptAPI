@@ -33,13 +33,15 @@
     </div>
     <textarea id="input"
       name="input">What is Seattle famous for ?</textarea>
-    <button id="send"></button>
+    <button id="send" class="send-state"></button>
   </div>
 </body>
 <script type="module">
   let success = true;
   const kFeatureFlagError = "Prompt API is not detected. Check feature flags are enabled, and that this is Canary.</li>";
   const kNoModelError = "Prompt API is available, feature flag is likely set correctly but no models are available.";
+  let session_controller = null;
+  let isStreaming = false;
   function error(str) {
     // Show the first error.
     if (success) {
@@ -94,7 +96,12 @@
   var session = null;
   try {
     showBusy(true);
-    session = await window.ai.languageModel.create({ temperature: 1.0, topK: 1 });
+    session_controller = new AbortController();
+    session = await window.ai.languageModel.create({ 
+      temperature: 1.0, 
+      topK: 1, 
+      signal: session_controller.signal 
+    });
     showBusy(false);
   }
   catch (e) {
@@ -159,8 +166,22 @@
   }
 
   async function onSend() {
+    const sendButton = document.getElementById("send");
+    
+    if (isStreaming) {
+      // Abort current stream
+      session_controller.abort();
+      session_controller = null;
+      isStreaming = false;
+      sendButton.classList.remove("abort-state");
+      sendButton.classList.add("send-state");
+      return;
+    }
+  
     const inputText = document.getElementById("input").value;
-    const prompt = inputText;
+    if (!inputText.trim()) return; // Don't send empty messages
+  
+    // Create UI elements
     let input = document.createElement("p");
     input.setAttribute("class", "from-me");
     input.innerText = inputText;
@@ -170,12 +191,31 @@
     document.getElementsByClassName("imessage")[0].appendChild(reply);
     update_element = reply;
     reply.innerText = "...";
+  
+    // Reset metrics
     start_time = Date.now();
     token_count = 0;
     post_prefill_time = null;
     post_prefill_c = null;
     post_prefill_t = null;
-    main(prompt);
+  
+    // Create new session if needed
+    if (!session) {
+      session_controller = new AbortController();
+      session = await window.ai.languageModel.create({ 
+        temperature: 1.0, 
+        topK: 1, 
+        signal: session_controller.signal 
+      });
+    }
+  
+    isStreaming = true;
+    sendButton.classList.remove("send-state");
+    sendButton.classList.add("abort-state");
+    await main(inputText);
+    isStreaming = false;
+    sendButton.classList.remove("abort-state");
+    sendButton.classList.add("send-state");
   }
   document.getElementById("send").onclick = onSend;
   document.getElementById("okay").style.display = "block";

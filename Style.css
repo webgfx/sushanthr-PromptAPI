@@ -134,12 +134,21 @@ textarea {
   position:relative;
   float:right;
   top: -60px;
-  background: url(Send.svg) no-repeat;
   right: 10px;
   background-size: cover;
   height: 50px;
   width: 50px;
   border:0px;
+}
+
+.send-state
+{
+  background: url(Send.svg) no-repeat;
+}
+
+.abort-state
+{
+  background: url(Stop.png) no-repeat;
 }
 
 /* general styling */
