@@ -246,7 +246,8 @@
         let answer = "";
         try {
           showBusy(true);
-          const stream = await window.ai.languageModel.create ? await session.promptStreaming(promptText) : null;
+          session = await window.ai.languageModel.create({ temperature: 1.0, topK: 1 });
+          const stream = await session.promptStreaming(promptText);
           for await (const chunk of stream) {
             answer += chunk;
           }
