@@ -77,7 +77,7 @@
     session = await window.ai.languageModel.create({ 
       temperature: modelSettings.temperature, 
       topK: modelSettings.topK,
-      systemPrompt: modelSettings.systemPrompt,
+      systemPrompt: modelSettings.systemPrompt.length > 0 ? modelSettings.systemPrompt : null,
       signal: session_controller.signal 
     });
     showBusy(false);
@@ -277,13 +277,7 @@
   
     // Create new session if needed
     if (!session) {
-      session_controller = new AbortController();
-      session = await window.ai.languageModel.create({ 
-        temperature: modelSettings.temperature, 
-        topK: modelSettings.topK,
-        systemPrompt: modelSettings.systemPrompt.length > 0 ? modelSettings.systemPrompt : null,
-        signal: session_controller.signal 
-      });
+      createSession();
     }
   
     isStreaming = true;
