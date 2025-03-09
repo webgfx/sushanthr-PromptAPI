@@ -67,7 +67,7 @@
   let modelSettings = {
     temperature: 1.0,
     topK: 1,
-    systemPrompt: ""
+    systemPrompt: "You are a helpful agent, who provides accurate and concise information."
   };
 
   async function createSession()
@@ -77,7 +77,7 @@
     session = await window.ai.languageModel.create({ 
       temperature: modelSettings.temperature, 
       topK: modelSettings.topK,
-      systemPrompt: modelSettings.systemPrompt.length > 0 ? modelSettings.systemPrompt : null,
+      systemPrompt: modelSettings.systemPrompt,
       signal: session_controller.signal 
     });
     showBusy(false);
@@ -131,7 +131,7 @@
     let result = null;
     if (window.ai.languageModel.capabilities) {
         result = await window.ai.languageModel.capabilities();
-        if (result.available == 'after-download') {
+        if (result.available != 'readily') {
           window.setTimeout(checkDownload, 100);
         }
         if (result.available == 'readily') {
@@ -139,7 +139,7 @@
         }
     } else {
         result = await window.ai.languageModel.availability();
-        if (result == 'downloadable' || result == 'downloading') {
+        if (result != 'available') {
           window.setTimeout(checkDownload, 100);
         }
         if (result == 'available') {
