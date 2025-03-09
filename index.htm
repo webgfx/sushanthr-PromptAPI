@@ -128,7 +128,12 @@
     document.getElementById("busy").style.display = busy ? "block" : "none";
   }
   async function checkDownload() {
-    let result = await window.ai.languageModel.capabilities();
+    let result = null;
+    if (window.ai.languageModel.capabilities) {
+        result = await window.ai.languageModel.capabilities();
+    } else {
+        result = await window.ai.languageModel.availability();
+    }
     if (result.available == 'after-download') {
       window.setTimeout(checkDownload, 100);
     }
@@ -139,7 +144,12 @@
 
   // Check for APi presence.
   try {
-    let result = await window.ai.languageModel.capabilities();
+    let result = null;
+    if (window.ai.languageModel.capabilities) {
+        result = await window.ai.languageModel.capabilities();
+    } else {
+        result = await window.ai.languageModel.availability();
+    }
     if (result.available == 'no') {
       error(kNoModelError);
     }
@@ -271,7 +281,7 @@
       session = await window.ai.languageModel.create({ 
         temperature: modelSettings.temperature, 
         topK: modelSettings.topK,
-        systemPrompt: modelSettings.systemPrompt,
+        systemPrompt: modelSettings.systemPrompt.length > 0 ? modelSettings.systemPrompt : null,
         signal: session_controller.signal 
       });
     }
