@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
+      <meta charset="UTF-8">
       <link rel="stylesheet" href="Style.css">
       <link rel="stylesheet" href="Progress.css">
       <link rel="stylesheet" href="Benchmark.css">
@@ -34,13 +35,13 @@ Plans for human spaceflight began in`;
 
 const k1KTokenPrompt2 = `Summarize this text: In computer science, the Earley parser is an algorithm for parsing strings that belong to a given context-free language, though (depending on the variant) it may suffer problems with certain nullable grammars.[1] The algorithm, named after its inventor, Jay Earley, is a chart parser that uses dynamic programming; it is mainly used for parsing in computational linguistics. It was first introduced in his dissertation[2] in 1968 (and later appeared in an abbreviated, more legible, form in a journal[3]).
 
-Earley parsers are appealing because they can parse all context-free languages, unlike LR parsers and LL parsers, which are more typically used in compilers but which can only handle restricted classes of languages. The Earley parser executes in cubic time in the general case 
+Earley parsers are appealing because they can parse all context-free languages, unlike LR parsers and LL parsers, which are more typically used in compilers but which can only handle restricted classes of languages. The Earley parser executes in cubic time in the general case
 O
 (
 n
 3
 )
-{\displaystyle {O}(n^{3})}, where n is the length of the parsed string, quadratic time for unambiguous grammars 
+{\displaystyle {O}(n^{3})}, where n is the length of the parsed string, quadratic time for unambiguous grammars
 O
 (
 n
@@ -150,7 +151,7 @@ Pse`;
                 let stream = session.promptStreaming(prompt);
                 let end = start;
                 let is_first_token = true;
-                for await (const chunk of stream) 
+                for await (const chunk of stream)
                 {
                     if (is_first_token) {
                         is_first_token = false;
@@ -330,8 +331,8 @@ Pse`;
             <h1>Browser built in LLM</h1>
             <h2>Benchmark the browser’s prompt API to see how fast it is.</h2>
             <div class="header">
-                <a link href="index.htm">Chat</a> | 
-                <a link href="Benchmark.htm">Benchmark</a> | 
+                <a link href="index.htm">Chat</a> |
+                <a link href="Benchmark.htm">Benchmark</a> |
                 <a link href="quality.htm">Quality</a>
             </div>
             <p id="error">
