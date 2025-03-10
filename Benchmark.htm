@@ -221,9 +221,7 @@ Pse`;
             let duration = await MeasureLoadTime(k1KTokenPrompt2, document.getElementById("1kt1"));
             duration += await MeasureLoadTime(k1KTokenPrompt, document.getElementById("1kt2"));
             duration += await MeasureLoadTime(k1KTokenPrompt2, document.getElementById("1kt3"));
-            duration += await MeasureLoadTime(k1KTokenPrompt, document.getElementById("1kt4"));
-            duration += await MeasureLoadTime(k1KTokenPrompt2, document.getElementById("1kt5"));
-            document.getElementById("time-to-prefill-1k").innerText = (duration / 5).toFixed(2);
+            document.getElementById("time-to-prefill-1k").innerText = (duration / 3).toFixed(2);
         }
 
         async function RunTPStest()
@@ -243,13 +241,7 @@ Pse`;
                 result = await MeasureTPS("Explain thermodynamics in simple terms.", document.getElementById("tps3-1"), document.getElementById("tps3-2"), scratch);
                 duration1 += result.interval1;
                 duration2 += result.interval2;
-                result = await MeasureTPS("Give me recipe for making cake.", document.getElementById("tps4-1"), document.getElementById("tps4-2"), scratch);
-                duration1 += result.interval1;
-                duration2 += result.interval2;
-                result = await MeasureTPS("Write me a poem about web browsers.", document.getElementById("tps5-1"), document.getElementById("tps5-2"), scratch);
-                duration1 += result.interval1;
-                duration2 += result.interval2;
-                document.getElementById("tps-result").innerText = ((duration1 + duration2) / 10).toFixed(2);
+                document.getElementById("tps-result").innerText = ((duration1 + duration2) / 6).toFixed(2);
                 scratch.innerText = "";
             }
             catch (e)
@@ -369,8 +361,8 @@ Pse`;
                             Measures time for the inference engine to process 1K tokens and produce the first response token.
                         </i>
                         <table class="small">
-                            <tr><th>Run</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr>
-                            <tr><th>ms</th><td id="1kt1">0</td><td id="1kt2">0</td><td id="1kt3">0</td><td id="1kt4">0</td><td id="1kt5">0</td></tr>
+                            <tr><th>Run</th><td>1</td><td>2</td><td>3</td></tr>
+                            <tr><th>ms</th><td id="1kt1">0</td><td id="1kt2">0</td><td id="1kt3">0</td></tr>
                         </table>
                     </td>
                     <td>
@@ -390,24 +382,18 @@ Pse`;
                                 <td>1</td>
                                 <td>2</td>
                                 <td>3</td>
-                                <td>4</td>
-                                <td>5</td>
                             </tr>
                             <tr>
                                 <th>Token 10-50 tps</th>
                                 <td id="tps1-1">0</td>
                                 <td id="tps2-1">0</td>
                                 <td id="tps3-1">0</td>
-                                <td id="tps4-1">0</td>
-                                <td id="tps5-1">0</td>
                             </tr>
                             <tr>
                                 <th>Token 50-100 tps</th>
                                 <td id="tps1-2">0</td>
                                 <td id="tps2-2">0</td>
                                 <td id="tps3-2">0</td>
-                                <td id="tps4-2">0</td>
-                                <td id="tps5-2">0</td>
                             </tr>
                         </table>
                         <div id="scratch-tps"></div>
