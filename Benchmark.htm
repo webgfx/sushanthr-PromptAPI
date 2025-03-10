@@ -105,19 +105,27 @@ Pse`;
         {
             try
             {
-                let result = await window.ai.languageModel.capabilities();
-                if (result.available == 'no')
-                {
-                    error(kNoModelError);
-                }
-                if (result.available == 'after-download')
-                {
-                    // call the API to trigger download.
-                    error(kDownloadError);
-                }
-                if (result.available != 'readily')
-                {
-                    error("Cannot create model now - " + result.available);
+                let result = null;
+                if (window.ai.languageModel.capabilities) {
+                    result = await window.ai.languageModel.capabilities();
+                    if (result.available == 'no')
+                    {
+                        error(kNoModelError);
+                    }
+                    if (result.available == 'after-download')
+                    {
+                        // call the API to trigger download.
+                        error(kDownloadError);
+                    }
+                    if (result.available != 'readily')
+                    {
+                        error("Cannot create model now - " + result.available);
+                    }
+                } else {
+                    result = await window.ai.languageModel.availability();
+                    if (result != 'available') {
+                        error("Cannot create model now - " + result.available);
+                    }
                 }
             }
             catch (e)
