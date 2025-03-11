@@ -212,10 +212,11 @@ h2 {
 #okay
 {
   color:green;
-  font-size: 12px;
+  font-size: 200%;
   font-weight: bold;
   display:none;
   position: relative;
+  text-align: center;
 }
 
 #okay span

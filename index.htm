@@ -39,10 +39,13 @@
 
     <p id="error">
     </p>
-    <p id="okay">
-      SUCCESS: Prompt API supported. <span><a id="settings-toggle" class="settings-toggle">⚙️</a><b>Char/s <b id="cps">0</b></b>|<b>Tokens/s <b id="tps">0</b></b>|<b>Start
-          Latency (ms)<b id="latency">0</b></b></span>
-    </p>
+    <div id="okay">
+      <!--<p>SUCCESS: Prompt API supported. </p>-->
+      <p>
+        <b>
+          Latency TTFT <b id="latency">0</b>ms</b> | <b id="tps">0</b><b> tokens/s </b>
+      </p>
+    </div>
     <div class="wrapper" id="busy">
       <div class="progressbar">
         <div class="stylization">
@@ -52,7 +55,46 @@
     <div class="imessage">
     </div>
     <textarea id="input"
-      name="input">What is Seattle famous for ?</textarea>
+      name="input">Summarize:
+      As of now, **NVIDIA Nsight Graphics** does not natively support **WebGPU**, because WebGPU is a relatively new API designed to 
+      offer more modern graphics capabilities directly from web browsers, whereas Nsight focuses primarily on low-level graphics APIs like Vulkan, Direct3D, and OpenGL. However, there are still ways to profile **WebGPU shaders**, either by using WebGPU-specific tools or by leveraging alternative strategies in conjunction with Nsight.
+      ### Here's how you can approach profiling WebGPU shaders:
+      ### 1. **Browser's Developer Tools**
+      WebGPU runs inside web browsers, so the primary way to profile WebGPU shaders is through the browser's built-in developer tools.
+      - **Google Chrome** (and other Chromium-based browsers) have a WebGPU implementation. The **Performance tab** can give some general insight into GPU workload and execution times.
+      - However, this is not as detailed as using tools like Nsight for native APIs like Vulkan.
+      You can follow these steps for basic profiling:
+         - Open **Chrome DevTools** (F12 or right-click and choose Inspect).
+         - Go to the **Performance** tab.
+         - Start recording while running your WebGPU workload.
+         - Stop the recording to analyze the GPU time and function calls.
+      For **WebGPU shader debugging**, WebGPU currently doesn't provide as many sophisticated tools for low-level shader profiling as Vulkan or DirectX.
+      ### 2. **Emulate WebGPU with Vulkan and Use Nsight**
+      To use **NVIDIA Nsight Graphics** or other advanced GPU profiling tools (which are generally more mature than WebGPU's current ecosystem), you can take an indirect approach:
+      - **WGPU** is a popular Rust-based implementation of WebGPU, which can compile WebGPU code to Vulkan, Metal, or Direct3D 12.
+         - By targeting **Vulkan** in a WebGPU project (using WGPU), you can capture the Vulkan API traces in Nsight Graphics.
+         - This way, you can benefit from Nsight's advanced GPU profiling and shader analysis tools by profiling the Vulkan backend that your WebGPU project uses.
+         Steps:
+         1. Set up **WGPU** (or another WebGPU-to-Vulkan translation layer).
+         2. Run your WebGPU code, but have it target the Vulkan backend.
+         3. Open **NVIDIA Nsight Graphics** and capture a frame from the Vulkan-based WebGPU app.
+         4. Analyze shader execution times, memory usage, and other GPU performance metrics using Nsight's tools.
+      This approach allows you to leverage Vulkan profiling tools on WebGPU projects indirectly.
+      ### 3. **Shader Profiling with Spirv-Cross**
+      WebGPU shaders are written in **WGSL** or can be translated from HLSL/GLSL into SPIR-V using tools like **SPIRV-Cross**. If you're using SPIR-V shaders, Nsight Graphics can profile them once you've translated the WebGPU pipeline to Vulkan or other supported APIs.
+      - **SPIR-V** shader code can be compiled using tools like **glslang** or **SPIRV-Tools** to ensure it's compatible with Vulkan.
+      - Profiling SPIR-V shaders is supported by Nsight, so once you have your WebGPU shaders translated to SPIR-V, you can take advantage of Nsight's shader analysis capabilities.
+      ### 4. **Monitor GPU Performance via Chrome's Internals**
+      Although Nsight Graphics doesn't support WebGPU directly, you can monitor GPU usage through **Chrome’s Task Manager** (Shift + Esc) to get rough insights into GPU memory usage and execution.
+      Additionally, Chrome flags like `--enable-gpu-benchmarking` and `--enable-webgpu` might give you more low-level insight into how WebGPU commands are being dispatched.
+      ### 5. **Wait for WebGPU Toolchain Maturity**
+      As WebGPU matures, tools specifically designed to profile and debug WebGPU shaders will become more common. For example, upcoming features in **Google Chrome DevTools** and other WebGPU-focused browser tools could make shader profiling easier and more accessible without relying on Vulkan backends.
+      ### Conclusion
+      1. **Direct Nsight support for WebGPU** is currently not available.
+      2. You can **use browser developer tools** (like Chrome's Performance tab) for high-level profiling.
+      3. **Convert WebGPU to Vulkan** via **WGPU** or similar projects to profile using Nsight.
+      4. Use **SPIR-V shaders** for more direct shader profiling via Nsight in Vulkan-based projects.
+      While the tools for WebGPU shader profiling are not as mature as those for Vulkan or DirectX, the combination of browser tools and Vulkan translation layers can provide insights for performance tuning.</textarea>
     <button id="send" class="send-state"></button>
   </div>
 </body>
@@ -257,8 +299,10 @@
           initial_delay = (Date.now() - start_time);
           latency_element.innerText = initial_delay;
         }
-        cps_element.innerText = current_cps;
+        // cps_element.innerText = current_cps;
         tps_element.innerText = current_tps;
+        let imessage = document.getElementsByClassName("imessage")[0];
+        imessage.scrollTop = imessage.scrollHeight;
       }
     }
     catch (e) {
